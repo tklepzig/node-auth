@@ -3,7 +3,14 @@
 var express = require('express');
 var app = express();
 var bodyParser = require('body-parser');
-var http = require('http').Server(app);
+var fs = require('fs');
+
+var options = {
+    key: fs.readFileSync('key.pem'),
+    cert: fs.readFileSync('cert.pem')
+};
+
+var https = require('https').createServer(options, app);
 
 app.use(bodyParser.urlencoded({
     extended: false
@@ -15,7 +22,8 @@ app.use(require('express-session')({
     saveUninitialized: false,
     cookie: {
         httpOnly: true,
-        secure: 'auto' //be careful when using http and https enabled site!
+        secure: true,
+        maxAge: 2 * 60 * 60 * 1000 //unit is ms (2 hours)
     }
 }));
 
@@ -81,6 +89,6 @@ app.use(function(request, response) {
     response.redirect('/');
 });
 
-http.listen(56000, function() {
+https.listen(56000, function() {
     console.log('listening on *:56000');
 });
