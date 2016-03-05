@@ -1,16 +1,27 @@
 'use strict';
 
+var user = require('./user.json');
 var express = require('express');
 var app = express();
 var bodyParser = require('body-parser');
 var fs = require('fs');
+var hasher = require('password-hash-and-salt');
 
 var options = {
     key: fs.readFileSync('key.pem'),
     cert: fs.readFileSync('cert.pem')
 };
-
 var https = require('https').createServer(options, app);
+var passport = require('passport');
+var LocalStrategy = require('passport-local').Strategy;
+
+// hasher('/*password*/').hash(function(error, hash) {
+//     if (error) {
+//         console.log('Error: ' + error);
+//     }
+//     console.log(hash);
+// });
+
 
 app.use(bodyParser.urlencoded({
     extended: false
@@ -27,23 +38,23 @@ app.use(require('express-session')({
     }
 }));
 
-var passport = require('passport');
-var LocalStrategy = require('passport-local').Strategy;
 
 app.use(passport.initialize());
 app.use(passport.session());
 
 passport.use(new LocalStrategy(
     function(username, password, done) {
-        //dummy, normally get from database, etc.
-        if (username === 'foo' && password === 'bar') {
-            return done(null, {
-                id: 42,
-                username: 'foo'
-            });
-        } else {
-            return done(null, false);
-        }
+        hasher(password).verifyAgainst(user.password, function(error, verified) {
+            if (error) {
+                console.log('Error: ' + error);
+                done(null, false);
+            }
+            if (username === user.username && verified) {
+                done(null, user);
+            } else {
+                done(null, false);
+            }
+        });
     }
 ));
 
@@ -53,10 +64,7 @@ passport.serializeUser(function(user, cb) {
 
 passport.deserializeUser(function(id, cb) {
     //dummy, normally get from database, etc.
-    cb(null, {
-        id: 42,
-        username: 'foo'
-    });
+    cb(null, user);
 });
 
 app.get('/login', function(req, res) {
